@@ -249,7 +249,7 @@ private final class ScriptedPlayer: BluOSClient, @unchecked Sendable {
 
     private let lock = NSLock()
     private var log: [String] = []
-    private let readNames: Set<String> = ["status", "playlist", "browse", "sync", "presets", "data"]
+    private let readNames: Set<String> = ["status", "playlist", "browse", "sync", "presets", "data", "shares", "addForm"]
 
     func calls(_ name: String) -> Int {
         lock.lock()
@@ -315,6 +315,23 @@ private final class ScriptedPlayer: BluOSClient, @unchecked Sendable {
     func syncStatus() async throws -> SyncStatus { record("sync"); return SyncStatus() }
     func addSlave(host: String, port: Int) async throws { record("addSlave") }
     func removeSlave(host: String, port: Int) async throws { record("removeSlave") }
+    func networkShares() async throws -> NetworkSharePage {
+        record("shares")
+        return NetworkSharePage(shares: [], actionURL: "", submitName: "remove", submitValue: "Remove selected shares")
+    }
+    func addShareForm() async throws -> AddShareForm {
+        record("addForm")
+        return .fallback
+    }
+    func addShare(name: String, username: String, password: String, form: AddShareForm) async throws -> NetworkSharePage {
+        record("addShare")
+        return NetworkSharePage(shares: [], actionURL: "", submitName: "remove", submitValue: "Remove selected shares")
+    }
+    func removeShares(_ paths: [String], from page: NetworkSharePage) async throws -> NetworkSharePage {
+        record("removeShares")
+        return page
+    }
+    func reindex() async throws { record("reindex") }
 
     @discardableResult
     private func record(_ name: String) -> Int {

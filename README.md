@@ -54,6 +54,7 @@ Buttons send real commands to the selected player. Play, pause, skip, volume, an
 - Media keys and Now Playing in Control Center
 - Optional menu-bar controls
 - Several players, and sync groups on the active player
+- Music library shares: Settings → Music Library adds or removes the player's network shares and can reindex the library. BluOS sends share passwords unencrypted on your local network. Nightdeck does not store them; the player never returns them, so changing a login means removing the share and adding it again.
 - Long-poll of `/Status` (etag and timeout). The progress bar moves locally between updates
 
 ## Disclaimer

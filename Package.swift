@@ -28,6 +28,7 @@ let package = Package(
             name: "NightdeckTests",
             dependencies: ["NightdeckCore", "Nightdeck"],
             path: "Tests/NightdeckTests",
+            exclude: ["Fixtures"],
             swiftSettings: [
                 .swiftLanguageMode(.v6),
                 .unsafeFlags(["-load-plugin-library", testingPlugin]),

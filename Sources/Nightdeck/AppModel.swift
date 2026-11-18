@@ -19,6 +19,11 @@ final class AppModel {
     private(set) var playerName = ""
     private(set) var searchKey = ""
     private(set) var libraryNote: LibraryNote?
+    private(set) var shares: [NetworkShare] = []
+    private(set) var sharesLoaded = false
+    private(set) var sharesBusy = false
+    private(set) var shareError: String?
+    private(set) var addShareForm = AddShareForm.fallback
 
     /// Rows with an add still in flight. A second click on the same row is ignored.
     private var pendingAdds: Set<String> = []
@@ -74,6 +79,9 @@ final class AppModel {
     @ObservationIgnored private var playSweepGen = 0
     @ObservationIgnored private var started = false
     @ObservationIgnored private var playerEpoch = 0
+    @ObservationIgnored private var sharePage: NetworkSharePage?
+    @ObservationIgnored private var shareGeneration = 0
+    @ObservationIgnored private var shareBusyCount = 0
     @ObservationIgnored private var commandsOpen = true
     @ObservationIgnored private var lastToggle = Date.distantPast
 
@@ -250,6 +258,7 @@ final class AppModel {
         connected = false
         notice = nil
         clearLibraryFeedback()
+        clearShares()
         slaves = []
         playerName = ""
         TransportUI.shared.resetTransient()
@@ -385,6 +394,7 @@ final class AppModel {
         status = PlayerStatus()
         clearError()
         clearLibraryFeedback()
+        clearShares()
         TransportUI.shared.resetTransient()
         retarget(host, port)
         commandsOpen = true
@@ -414,8 +424,117 @@ final class AppModel {
         cancelSeek()
         cancelWake()
         clearLibraryFeedback()
+        clearShares()
         pollTask = nil
         chain = nil
+    }
+
+    /// Loads the player's network shares. Does nothing until a player is connected.
+    func reloadShares() async {
+        shareGeneration += 1
+        let generation = shareGeneration
+        let epoch = playerEpoch
+        guard connected, commandsOpen, !host.isEmpty else {
+            if generation == shareGeneration {
+                shares = []
+                sharePage = nil
+                sharesLoaded = false
+                shareError = nil
+            }
+            return
+        }
+        beginShareWork()
+        defer { endShareWork() }
+        retarget(host, port)
+        do {
+            let page = try await client.networkShares()
+            guard generation == shareGeneration, epoch == playerEpoch else { return }
+            applyShares(page)
+            shareError = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            guard generation == shareGeneration, epoch == playerEpoch else { return }
+            shareError = message(error)
+        }
+    }
+
+    func loadAddShareForm() async {
+        guard connected, commandsOpen, !host.isEmpty else { return }
+        let epoch = playerEpoch
+        retarget(host, port)
+        do {
+            let form = try await client.addShareForm()
+            guard epoch == playerEpoch else { return }
+            addShareForm = form
+        } catch is CancellationError {
+            return
+        } catch {
+            guard epoch == playerEpoch else { return }
+            addShareForm = .fallback
+        }
+    }
+
+    /// Sends the share. The password is not stored. Throws the player's error text.
+    func addShare(name: String, username: String, password: String) async throws {
+        guard connected, commandsOpen, !host.isEmpty else {
+            throw BluOSError.unreachable(host.isEmpty ? "Player not reachable" : "Player not reachable at \(host)")
+        }
+        shareGeneration += 1
+        let generation = shareGeneration
+        let epoch = playerEpoch
+        let endpointHost = host
+        let endpointPort = port
+        beginShareWork()
+        defer { endShareWork() }
+        retarget(endpointHost, endpointPort)
+        let form = try await client.addShareForm()
+        guard epoch == playerEpoch, host == endpointHost, port == endpointPort else { return }
+        addShareForm = form
+        let page = try await client.addShare(name: name, username: username, password: password, form: form)
+        guard generation == shareGeneration, epoch == playerEpoch else { return }
+        applyShares(page)
+        shareError = nil
+    }
+
+    func removeShares(_ paths: [String]) async {
+        guard connected, commandsOpen, !paths.isEmpty, let page = sharePage else { return }
+        shareGeneration += 1
+        let generation = shareGeneration
+        let epoch = playerEpoch
+        beginShareWork()
+        defer { endShareWork() }
+        retarget(host, port)
+        do {
+            let updated = try await client.removeShares(paths, from: page)
+            guard generation == shareGeneration, epoch == playerEpoch else { return }
+            applyShares(updated)
+            shareError = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            guard generation == shareGeneration, epoch == playerEpoch else { return }
+            shareError = message(error)
+        }
+    }
+
+    func reindexLibrary() async {
+        guard connected, commandsOpen, !host.isEmpty else { return }
+        let epoch = playerEpoch
+        beginShareWork()
+        defer { endShareWork() }
+        retarget(host, port)
+        do {
+            try await client.reindex()
+            guard epoch == playerEpoch else { return }
+            if status.indexing < 1 { status.indexing = 1 }
+            shareError = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            guard epoch == playerEpoch else { return }
+            shareError = message(error)
+        }
     }
 
     func seek(to seconds: Double) {
@@ -1254,6 +1373,33 @@ final class AppModel {
         guard let playHold else { return }
         guard PlaybackStamp(status) != playHold.stamp else { return }
         self.playHold = nil
+    }
+
+    private func applyShares(_ page: NetworkSharePage) {
+        sharePage = page
+        shares = page.shares
+        sharesLoaded = true
+    }
+
+    private func clearShares() {
+        shareGeneration += 1
+        shareBusyCount = 0
+        sharesBusy = false
+        shares = []
+        sharePage = nil
+        sharesLoaded = false
+        shareError = nil
+        addShareForm = .fallback
+    }
+
+    private func beginShareWork() {
+        shareBusyCount += 1
+        sharesBusy = true
+    }
+
+    private func endShareWork() {
+        shareBusyCount = max(0, shareBusyCount - 1)
+        sharesBusy = shareBusyCount > 0
     }
 
     private func clearLibraryFeedback() {

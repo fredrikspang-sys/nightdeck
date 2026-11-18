@@ -3,12 +3,50 @@ import Foundation
 import Testing
 @testable import NightdeckCore
 
+/// One mock at a time until it is listening. Each mock also binds the next two ports,
+/// which would otherwise collide with the next test's port.
+private actor MockLaunchGate {
+    static let shared = MockLaunchGate()
+    private var busy = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func acquire() async {
+        if !busy {
+            busy = true
+            return
+        }
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            waiters.append(cont)
+        }
+    }
+
+    func release() {
+        if waiters.isEmpty {
+            busy = false
+            return
+        }
+        waiters.removeFirst().resume()
+    }
+}
+
 struct MockServer {
     let port: Int
     let process: Process
     let logURL: URL?
 
     static func launch(logURL: URL? = nil, environment: [String: String] = [:]) async throws -> MockServer {
+        await MockLaunchGate.shared.acquire()
+        do {
+            let server = try await start(logURL: logURL, environment: environment)
+            await MockLaunchGate.shared.release()
+            return server
+        } catch {
+            await MockLaunchGate.shared.release()
+            throw error
+        }
+    }
+
+    private static func start(logURL: URL? = nil, environment: [String: String] = [:]) async throws -> MockServer {
         let script = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()

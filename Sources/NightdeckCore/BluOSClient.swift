@@ -94,6 +94,11 @@ public protocol BluOSClient: Sendable {
     func syncStatus() async throws -> SyncStatus
     func addSlave(host: String, port: Int) async throws
     func removeSlave(host: String, port: Int) async throws
+    func networkShares() async throws -> NetworkSharePage
+    func addShareForm() async throws -> AddShareForm
+    func addShare(name: String, username: String, password: String, form: AddShareForm) async throws -> NetworkSharePage
+    func removeShares(_ paths: [String], from page: NetworkSharePage) async throws -> NetworkSharePage
+    func reindex() async throws
 }
 
 public enum BluOSURL {

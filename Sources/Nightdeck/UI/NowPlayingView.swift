@@ -231,6 +231,16 @@ struct NowPlayingView: View {
                     .font(.caption)
                     .foregroundStyle(Theme.tertiary)
             }
+            if status.indexing > 0 {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text("Indexing library…")
+                        .font(.caption)
+                        .foregroundStyle(Theme.accent)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Indexing library")
+            }
             if let caption = model.sleepCaption {
                 Text(caption)
                     .font(.caption)

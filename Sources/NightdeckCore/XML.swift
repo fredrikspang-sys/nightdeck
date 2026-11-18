@@ -139,8 +139,11 @@ public enum BluOSXML {
     /// Detail string when the document root is `<error>`, otherwise nil.
     public static func errorDetail(_ xml: String) -> String? {
         guard let root = parseRoot(xml), root.name == "error" else { return nil }
+        // Most calls answer <error><detail>; the share form (/cp/AddShare) answers <error><message>.
         let detail = root.directText("detail")
-        return detail.isEmpty ? "error" : detail
+        if !detail.isEmpty { return detail }
+        let message = root.directText("message")
+        return message.isEmpty ? "error" : message
     }
 
     public static func elementText(_ xml: String, named: String) -> String? {

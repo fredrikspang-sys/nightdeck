@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<settings pageId="addShare" schemaVersion="28">
+	<menuGroup id="addShare" displayName="Add shares" url="/cp/AddShare" class="form" buttonText="Add share" notification="Share added" closeOnInvoke="true">
+		<setting id="sharename" name="sharename" displayName="Enter share name (as \\ComputerName\share)" class="text" pattern="^\\\\(.*?)\\(.*)$" patternError="Share URL must be in the form \\computer\share" requiredError="This field is required." required="true"></setting>
+		<setting id="username" name="username" displayName="User name (if required)" class="text"></setting>
+		<setting id="password" name="password" displayName="Password (if required)" class="text" style="password"></setting>
+	</menuGroup>
+</settings>

@@ -6,11 +6,20 @@ Implements the subset of the BluOS HTTP API that bluplay uses (/Status with long
 /Clear, /Reindex, /Stop, /Move, /Sleep, /Presets, /Preset, /Volume?mute,
 /Save, /Playlists, saved playlists under /Browse?key=BluOS:, /Load, /Delete?name=) on 127.0.0.1, backed by a small invented music library.
 
-usage: fake_player.py [PORT]            (default 11000)
+Network shares: GET /Settings on PORT answers 301 to PORT+1 (or the next free port).
+That second listener serves /Settings?id=networkShares and /Settings?id=addShare only;
+POST /cp/AddShare is answered on PORT (like a NAD C390: 11001 gives 404 for it), and its errors
+are <error><message>..</message></error> like the player's. A third listener (argv port, or FAKE_REMOVE_PORT, default PORT+2)
+accepts POST /findremoveshares. The share form's action points at 127.0.0.1 on that port.
+FAKE_LOG receives request paths only, never bodies or passwords.
+
+usage: mock_bluos.py [PORT] [REMOVE_PORT]   (default port 11000, remove port PORT+2)
 env:   FAKE_QN=N    initial queue length (default 4)
        FAKE_LAT=MS  added latency per request (default 0)
        FAKE_LOG=F   log request paths to file F
        FAKE_NAME=S  /SyncStatus name attribute (default Fake Player)
+       FAKE_REMOVE_PORT=N   POST /findremoveshares port when argv omits it
+       FAKE_IDX_SECS=N      how long /Reindex reports indexing 1 (default 2)
 
 Test-only control endpoint: /_x?resetq=N&song=I&state=play|pause|stop&vol=V
   /_x?name=S sets the /SyncStatus name; /_x?slavefail=N fails the next N /AddSlave or /RemoveSlave
@@ -25,8 +34,14 @@ Test-only control endpoint: /_x?resetq=N&song=I&state=play|pause|stop&vol=V
   /_x?totlen=N&canseek=0|1 sets duration and whether /Status reports canSeek
   /_x?seekfail=N the next N /Play?seek= calls return <error><detail>seek refused</detail></error> and do not move
   /_x?reportsec=N the next /Status reports secs N once (a stale poll); /_x?wake=1 pushes a fresh /Status
+  /_x?postredirect=1  the next POST /cp/AddShare answers 307 to /cp/AddShareAccept, which accepts the same body
+  /_x?addsharefail=N  the next N POST /cp/AddShare answer <error><message>Addshare failed</message></error> (mount failed)
+  POST /findremoveshares answers 302 to /sharecfg?noheader=1 (the web form's done page)
+  /_x?actionhost=H    host written into the remove-share form action (default 127.0.0.1)
+  /_x?shareecho=1     the next POST /cp/AddShare returns <error><message> containing the submitted password
+       (the response only; the log still has the path and not the body)
 """
-import http.server, socketserver, urllib.parse as up, sys, time, os, random, hashlib, threading
+import http.server, socketserver, urllib.parse as up, sys, time, os, random, hashlib, threading, re
 from xml.sax.saxutils import escape, quoteattr as qa
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 11000
@@ -65,8 +80,7 @@ def bump():
     with COND: COND.notify_all()
 def idxn():
     if not S["idx_dur"]: return 0
-    e = time.time() - S["idx_t0"]
-    return 0 if e >= S["idx_dur"] else 1 + int(e * 500)
+    return 0 if time.time() - S["idx_t0"] >= S["idx_dur"] else 1
 def core():
     s = Q[S["song"]] if 0 <= S["song"] < len(Q) else None
     image = "<image>/Artwork?cover=1</image>" if s else ""
@@ -162,6 +176,13 @@ class H(http.server.BaseHTTPRequestHandler):
         if LAT: time.sleep(LAT)
         u = up.urlparse(self.path); p = u.path; qs = up.parse_qs(u.query, keep_blank_values=True)
         g = lambda k, d=None: qs.get(k, [d])[0]
+        if p == "/Settings":
+            loc = "http://127.0.0.1:%d%s" % (SETTINGS_PORT, self.path)
+            self.send_response(301)
+            self.send_header("Location", loc)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         x = ""
         if p != "/_x" and FAILNEXT[0] > 0:
             FAILNEXT[0] -= 1
@@ -204,6 +225,10 @@ class H(http.server.BaseHTTPRequestHandler):
             if "failnext" in qs: FAILNEXT[0] = int(g("failnext"))
             if "slavefail" in qs: SLAVEFAIL[0] = int(g("slavefail"))
             if "name" in qs: NAME = g("name") or ""
+            if "postredirect" in qs: POST_REDIRECT[0] = max(0, int(g("postredirect") or 0))
+            if "actionhost" in qs: ACTION_HOST[0] = g("actionhost") or "127.0.0.1"
+            if "shareecho" in qs: SHARE_ECHO[0] = max(0, int(g("shareecho") or 0))
+            if "addsharefail" in qs: ADD_FAIL[0] = max(0, int(g("addsharefail") or 0))
             if "sleep" in qs: S["sleep"] = int(g("sleep"))
             if "sleepend" in qs:
                 S["sleep"] = 0
@@ -215,7 +240,7 @@ class H(http.server.BaseHTTPRequestHandler):
             if "dellog" in qs: x = "<dellog>%s</dellog>" % "".join('<id id="%d"/>' % i for i in DELLOG)
             bump(); x = x or "<ok/>"
         elif p == "/Reindex":
-            if idxn() == 0: S["idx_t0"] = time.time(); S["idx_dur"] = float(os.environ.get("FAKE_IDX_SECS", "3"))
+            if idxn() == 0: S["idx_t0"] = time.time(); S["idx_dur"] = float(os.environ.get("FAKE_IDX_SECS", "2"))
             x = "<indexing>%d</indexing>" % idxn()
         elif p == "/Playlist" and "length" in qs:   # real player: /Playlist?length=1 -> length and id only
             x = "<playlist><length>%d</length><id>%d</id></playlist>" % (len(Q), S["pid"])
@@ -316,5 +341,216 @@ class H(http.server.BaseHTTPRequestHandler):
 class T(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True; allow_reuse_address = True
 
+# Share list lives in memory. Passwords are read and discarded; they are never stored or logged.
+SHARE_RE = re.compile(r"^\\\\(.*?)\\(.*)$")
+SETTINGS_PORT = PORT + 1
+REMOVE_PORT = int(sys.argv[2]) if len(sys.argv) > 2 else int(os.environ.get("FAKE_REMOVE_PORT", str(PORT + 2)))
+ACTION_HOST = ["127.0.0.1"]
+POST_REDIRECT = [0]
+SHARE_ECHO = [0]
+ADD_FAIL = [0]
+SHARE_LOCK = threading.Lock()
+SHARE_STYLE = (
+    "<style>\n"
+    ".heading{font-weight:600;margin:0 0 8px 0;}\n"
+    "#configshareform{font-family:inherit;color:inherit;}\n"
+    "#configshareform fieldset{border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 10px;margin:0 0 12px 0;}\n"
+    "#configshareform .row{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:6px;}\n"
+    "#configshareform .row:hover{background:rgba(255,255,255,0.06);}\n"
+    "#configshareform input[type=checkbox]{width:18px;height:18px;accent-color:#4a9eff;margin:0;flex:0 0 auto;cursor:pointer;}\n"
+    "#configshareform label{cursor:pointer;flex:1;overflow-wrap:break-word;}\n"
+    "#configshareform input[type=submit]{margin-top:8px;padding:10px 18px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:#2a2f36;color:inherit;font:inherit;cursor:pointer;}\n"
+    "#configshareform input[type=submit]:hover{background:#353b44;}\n"
+    "</style>"
+)
+ADD_SHARE_XML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<settings pageId="addShare" schemaVersion="28">
+	<menuGroup id="addShare" displayName="Add shares" url="/cp/AddShare" class="form" buttonText="Add share" notification="Share added" closeOnInvoke="true">
+		<setting id="sharename" name="sharename" displayName="Enter share name (as \\\\ComputerName\\share)" class="text" pattern="^\\\\\\\\(.*?)\\\\(.*)$" patternError="Share URL must be in the form \\\\computer\\share" requiredError="This field is required." required="true"></setting>
+		<setting id="username" name="username" displayName="User name (if required)" class="text"></setting>
+		<setting id="password" name="password" displayName="Password (if required)" class="text" style="password"></setting>
+	</menuGroup>
+</settings>
+"""
+
+def share_record(path):
+    match = SHARE_RE.fullmatch(path)
+    host, rest = match.group(1), match.group(2)
+    return {"path": path, "label": "%s on %s (%s)" % (rest, host, path)}
+
+SHARES = [share_record(r"\\10.0.0.5\Media\Music"), share_record(r"\\nas.example\Rock & Roll")]
+
+def note(handler):
+    if LOG:
+        LOG.write(handler.path + "\n")
+        LOG.flush()
+
+def read_body(handler):
+    try:
+        n = int(handler.headers.get("Content-Length", "0") or 0)
+    except ValueError:
+        n = 0
+    if n <= 0:
+        return b""
+    return handler.rfile.read(n)
+
+def xml_send(handler, xml, code=200):
+    if not xml.lstrip().startswith("<?xml"):
+        xml = '<?xml version="1.0" encoding="UTF-8"?>' + xml
+    data = xml.encode("utf-8")
+    handler.send_response(code)
+    handler.send_header("Content-Type", "text/xml; charset=utf-8")
+    handler.send_header("Content-Length", str(len(data)))
+    handler.end_headers()
+    handler.wfile.write(data)
+
+def html_text(value):
+    return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+def action_url():
+    return "http://%s:%d/findremoveshares" % (ACTION_HOST[0], REMOVE_PORT)
+
+def network_shares_xml():
+    with SHARE_LOCK:
+        rows = []
+        for index, share in enumerate(SHARES, start=1):
+            box = "checkbox%d" % index
+            rows.append(
+                '<div class="row"><input name="%s" id="%s" type="checkbox" /><label for="%s">%s</label></div>'
+                % (html_text(share["path"]), box, box, html_text(share["label"]))
+            )
+        html = (
+            SHARE_STYLE
+            + '<form id="configshareform" method="POST" action="%s"><fieldset>%s</fieldset>'
+            % (html_text(action_url()), "".join(rows))
+            + '<input type="submit" name="remove" value="Remove selected shares" /></form>'
+        )
+    return (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        '<settings pageId="networkShares" schemaVersion="28">\n'
+        '\t<menuGroup id="networkShares" displayName="Network Shares" icon="/images/settings/ic_networkshares.png" refresh="true">\n'
+        '\t\t<setting id="shares" name="shares" displayName="Current music shares" class="html" value=%s readonly="true"></setting>\n'
+        '\t\t<menuGroup id="addShare" displayName="Add shares" url="/cp/AddShare" class="form" buttonText="Add share" notification="Share added" closeOnInvoke="true"></menuGroup>\n'
+        '\t</menuGroup>\n'
+        '</settings>\n'
+    ) % qa(html)
+
+def form_fields(raw):
+    return up.parse_qs(raw.decode("utf-8", "replace"), keep_blank_values=True)
+
+def add_share(handler, raw):
+    fields = form_fields(raw)
+    name = fields.get("sharename", [""])[0]
+    if SHARE_ECHO[0] > 0:
+        SHARE_ECHO[0] -= 1
+        # Echo stays in this response so a client test can prove it strips the password.
+        # The log line above is only the path.
+        detail = escape(fields.get("password", [""])[0])
+        xml_send(handler, "<error><message>refused %s</message></error>" % detail)
+        return
+    if SHARE_RE.fullmatch(name) is None:
+        xml_send(handler, "<error><message>Share URL must be in the form \\\\computer\\share</message></error>")
+        return
+    if ADD_FAIL[0] > 0:
+        ADD_FAIL[0] -= 1
+        xml_send(handler, "<error><message>Addshare failed</message></error>")
+        return
+    with SHARE_LOCK:
+        if any(share["path"] == name for share in SHARES):
+            xml_send(handler, "<error><message>Share already exists</message></error>")
+            return
+        SHARES.append(share_record(name))
+    xml_send(handler, "<ok/>")
+
+class SettingsH(http.server.BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.0"
+    def log_message(self, *a): pass
+    def do_GET(self):
+        note(self)
+        if LAT: time.sleep(LAT)
+        u = up.urlparse(self.path)
+        if u.path == "/cp/AddShareAccept":
+            self.send_response(405)
+            self.send_header("Allow", "POST")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if u.path != "/Settings":
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        ident = up.parse_qs(u.query).get("id", [""])[0]
+        xml_send(self, ADD_SHARE_XML if ident == "addShare" else network_shares_xml())
+    def do_POST(self):   # the real player's settings port has no form handlers
+        note(self)
+        read_body(self)
+        self.send_response(404)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+class RemoveH(http.server.BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.0"
+    def log_message(self, *a): pass
+    def do_GET(self):
+        note(self)
+        self.send_response(405)
+        self.send_header("Allow", "POST")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+    def do_POST(self):
+        note(self)
+        raw = read_body(self)
+        if LAT: time.sleep(LAT)
+        if up.urlparse(self.path).path != "/findremoveshares":
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        fields = form_fields(raw)
+        with SHARE_LOCK:
+            for key, values in fields.items():
+                if values and values[0] == "on":
+                    SHARES[:] = [share for share in SHARES if share["path"] != key]
+        self.send_response(302)   # like the player's web form: redirect to the share page (not fetched by the client)
+        self.send_header("Location", "/sharecfg?noheader=1")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+def listen(port, handler):
+    last = None
+    for offset in range(30):
+        try:
+            return T(("127.0.0.1", port + offset), handler), port + offset
+        except OSError as err:
+            last = err
+    raise SystemExit("could not bind port %s: %s" % (port, last))
+
+def main_post(self):   # POST to the API port: the add-share form (as on a NAD C390, BluOS 4.18)
+    note(self)
+    raw = read_body(self)
+    if LAT: time.sleep(LAT)
+    path = up.urlparse(self.path).path
+    if path == "/cp/AddShare" and POST_REDIRECT[0] > 0:
+        POST_REDIRECT[0] -= 1
+        self.send_response(307)
+        self.send_header("Location", "http://127.0.0.1:%d/cp/AddShareAccept" % PORT)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return
+    if path in ("/cp/AddShare", "/cp/AddShareAccept"):
+        add_share(self, raw)
+        return
+    self.send_response(404)
+    self.send_header("Content-Length", "0")
+    self.end_headers()
+H.do_POST = main_post
+
 if __name__ == "__main__":
-    T(("127.0.0.1", PORT), H).serve_forever()
+    # Bind the caller's port first so a parallel test cannot lose it to this process's extra listeners.
+    main_server = T(("127.0.0.1", PORT), H)
+    settings_server, SETTINGS_PORT = listen(PORT + 1, SettingsH)
+    remove_server, REMOVE_PORT = listen(REMOVE_PORT, RemoveH)
+    threading.Thread(target=settings_server.serve_forever, daemon=True).start()
+    threading.Thread(target=remove_server.serve_forever, daemon=True).start()
+    main_server.serve_forever()

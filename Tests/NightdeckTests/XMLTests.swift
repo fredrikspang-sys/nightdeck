@@ -100,6 +100,7 @@ import Testing
     #expect(open?.level == 50)
     #expect(open?.mute == false)
     #expect(BluOSXML.errorDetail("<error><detail>search broke</detail></error>") == "search broke")
+    #expect(BluOSXML.errorDetail("<error><message>Addshare failed</message></error>") == "Addshare failed")
     #expect(BluOSXML.errorDetail("<status></status>") == nil)
     #expect(BluOSXML.elementText("<sleep></sleep>", named: "sleep") == "")
     #expect(BluOSXML.elementText("<saved><entries>4</entries></saved>", named: "entries") == "4")
