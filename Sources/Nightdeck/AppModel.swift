@@ -281,7 +281,7 @@ final class AppModel {
         discovered = await PlayerDiscovery().browse(timeout: 2)
     }
 
-    /// Opens the picker: Bonjour plus one `/SyncStatus` read. Does not group or switch.
+    /// Opens the picker: Bonjour and LSDP, plus one `/SyncStatus` read. Does not group or switch.
     func refreshPicker() async {
         let epoch = playerEpoch
         await discover()

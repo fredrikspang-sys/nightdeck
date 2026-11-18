@@ -1,7 +1,7 @@
 import Darwin
 import Foundation
 
-/// Browses `_musc._tcp`, `_musp._tcp` and `_musz._tcp` for a few seconds. musc results come first.
+/// Browses `_musc._tcp`, `_musp._tcp` and `_musz._tcp`, and LSDP on UDP 11430, for a few seconds. musc results come first.
 public final class PlayerDiscovery: @unchecked Sendable {
     private let lock = NSLock()
     private var box: BrowseBox?
@@ -10,7 +10,23 @@ public final class PlayerDiscovery: @unchecked Sendable {
 
     public func browse(timeout: TimeInterval = 2) async -> [DiscoveredPlayer] {
         let limit = min(30, max(0.5, timeout))
-        return await withCheckedContinuation { continuation in
+        async let mdns = browseBonjour(timeout: limit)
+        async let lsdp = LsdpDiscovery.browse(timeout: limit)
+        return Self.merge(mdns: await mdns, lsdp: await lsdp)
+    }
+
+    static func merge(mdns: [DiscoveredPlayer], lsdp: [DiscoveredPlayer]) -> [DiscoveredPlayer] {
+        var found: [DiscoveredPlayer] = []
+        for player in mdns + lsdp {
+            if !found.contains(where: { $0.host == player.host && $0.port == player.port }) {
+                found.append(player)
+            }
+        }
+        return found
+    }
+
+    private func browseBonjour(timeout: TimeInterval) async -> [DiscoveredPlayer] {
+        await withCheckedContinuation { continuation in
             DispatchQueue.main.async { [self] in
                 let next = BrowseBox()
                 self.lock.lock()
@@ -18,7 +34,7 @@ public final class PlayerDiscovery: @unchecked Sendable {
                 self.box = next
                 self.lock.unlock()
                 previous?.cancel()
-                next.start(timeout: limit, continuation: continuation)
+                next.start(timeout: timeout, continuation: continuation)
             }
         }
     }
