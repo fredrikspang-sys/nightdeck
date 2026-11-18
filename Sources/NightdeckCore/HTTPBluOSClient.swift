@@ -297,7 +297,7 @@ public final class HTTPBluOSClient: BluOSClient, @unchecked Sendable {
         req.timeoutInterval = timeout
         req.cachePolicy = .reloadIgnoringLocalCacheData
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        req.setValue("Nightdeck/1.0.0", forHTTPHeaderField: "User-Agent")
+        req.setValue("Nightdeck/1.1.0", forHTTPHeaderField: "User-Agent")
         req.setValue("*/*", forHTTPHeaderField: "Accept")
         let data: Data
         let http: HTTPURLResponse
@@ -358,7 +358,7 @@ public final class HTTPBluOSClient: BluOSClient, @unchecked Sendable {
         req.httpMethod = "GET"
         req.timeoutInterval = timeout
         req.cachePolicy = .reloadIgnoringLocalCacheData
-        req.setValue("Nightdeck/1.0.0", forHTTPHeaderField: "User-Agent")
+        req.setValue("Nightdeck/1.1.0", forHTTPHeaderField: "User-Agent")
         req.setValue("*/*", forHTTPHeaderField: "Accept")
         do {
             let (data, response) = try await session.data(for: req)

@@ -1,8 +1,8 @@
 # Nightdeck
 
-Nightdeck is a native macOS player for BluOS. Version 1.0.0 talks to a player over HTTP on port 11000, the same local API as [bluplay](https://github.com/fredrikspang-sys/bluplay).
+Nightdeck is a native macOS player for BluOS. Version 1.1.0 talks to a player over HTTP on port 11000, the same local API as [bluplay](https://github.com/fredrikspang-sys/bluplay).
 
-The goal is a small footprint and simplicity. The app bundle is about 4.1 MB, and the release zip is about 2.2 MB. There is no telemetry and no account. It talks to the player on the local network. Streaming services are not supported. Nightdeck browses and plays the player's local library.
+The goal is a small footprint and simplicity. The app bundle is about 4.6 MB, and the release zip is about 2.3 MB. There is no telemetry and no account. It talks to the player on the local network. Streaming services are not supported. Nightdeck browses and plays the player's local library.
 
 ## Screenshots
 
@@ -14,7 +14,7 @@ The goal is a small footprint and simplicity. The app bundle is about 4.1 MB, an
 
 ## Download
 
-Download `Nightdeck-1.0.0-macOS.zip` from [Releases](https://github.com/fredrikspang-sys/nightdeck/releases), unzip it and move `Nightdeck.app` to Applications.
+Download `Nightdeck-1.1.0-macOS.zip` from [Releases](https://github.com/fredrikspang-sys/nightdeck/releases), unzip it and move `Nightdeck.app` to Applications.
 
 The app is ad-hoc signed and not notarized, so macOS blocks it the first time. Right-click `Nightdeck.app` and choose Open, then confirm. On newer macOS versions you may need to allow it under System Settings > Privacy & Security instead. You can also remove the quarantine flag in Terminal:
 
