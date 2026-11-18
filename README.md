@@ -4,6 +4,14 @@ Nightdeck is a native macOS player for BluOS. Version 1.0.0 talks to a player ov
 
 The goal is a small footprint and simplicity. The app bundle is about 4.1 MB, and the release zip is about 2.2 MB. There is no telemetry and no account. It talks to the player on the local network. Streaming services are not supported. Nightdeck browses and plays the player's local library.
 
+## Screenshots
+
+![Now playing](docs/now-playing.png)
+
+![Library](docs/library.png)
+
+![Queue](docs/queue.png)
+
 ## Download
 
 Download `Nightdeck-1.0.0-macOS.zip` from [Releases](https://github.com/fredrikspang-sys/nightdeck/releases), unzip it and move `Nightdeck.app` to Applications.
@@ -36,7 +44,6 @@ The player you are controlling is the group master. Group and Ungroup add or rem
 
 Buttons send real commands to the selected player. Play, pause, skip, volume, and queue changes are not read-only.
 
-
 ## Features
 
 - Now playing: cover art, title, artist, album, seek, play/pause, previous, next, volume, shuffle, repeat
@@ -48,14 +55,6 @@ Buttons send real commands to the selected player. Play, pause, skip, volume, an
 - Optional menu-bar controls
 - Several players, and sync groups on the active player
 - Long-poll of `/Status` (etag and timeout). The progress bar moves locally between updates
-
-## Screenshots
-
-![Now playing](docs/now-playing.png)
-
-![Library](docs/library.png)
-
-![Queue](docs/queue.png)
 
 ## Disclaimer
 
