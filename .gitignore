@@ -1,0 +1,14 @@
+reference-bluplay/
+.build/
+build/
+.DS_Store
+*.app
+xcuserdata/
+DerivedData/
+.swiftpm/
+
+# lab notes (kept local)
+*TASK.md
+REVIEW*.md
+REPORT.md
+PRINCIPLES.md

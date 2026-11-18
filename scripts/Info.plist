@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>no.spang.nightdeck</string>
+	<key>CFBundleName</key>
+	<string>Nightdeck</string>
+	<key>CFBundleDisplayName</key>
+	<string>Nightdeck</string>
+	<key>CFBundleExecutable</key>
+	<string>Nightdeck</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.music</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_musc._tcp</string>
+		<string>_musp._tcp</string>
+		<string>_musz._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Nightdeck finds BluOS players on the local network.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright 2026 Fredrik Spång</string>
+</dict>
+</plist>
