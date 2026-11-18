@@ -2,6 +2,8 @@
 
 Nightdeck is a native macOS player for BluOS. Version 1.0.0 talks to a player over HTTP on port 11000, the same local API as [bluplay](https://github.com/fredrikspang-sys/bluplay).
 
+The goal is a small footprint and simplicity. The app bundle is about 4.1 MB, and the release zip is about 2.2 MB. There is no telemetry and no account. It talks to the player on the local network. Streaming services are not supported. Nightdeck browses and plays the player's local library.
+
 ## Download
 
 Download `Nightdeck-1.0.0-macOS.zip` from [Releases](https://github.com/fredrikspang-sys/nightdeck/releases), unzip it and move `Nightdeck.app` to Applications.
