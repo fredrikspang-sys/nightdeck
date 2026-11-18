@@ -36,13 +36,6 @@ The player you are controlling is the group master. Group and Ungroup add or rem
 
 Buttons send real commands to the selected player. Play, pause, skip, volume, and queue changes are not read-only.
 
-## Tests
-
-```sh
-swift test
-```
-
-Tests start `scripts/mock_bluos.py` (Python 3, standard library only) on `127.0.0.1` and talk to that. They do not contact a player on the network. `swift test` on Command Line Tools loads the Testing macros plugin from the Command Line Tools directory. `swift build` does not need it.
 
 ## Features
 
