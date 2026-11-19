@@ -25,10 +25,10 @@ xattr -dr com.apple.quarantine /Applications/Nightdeck.app
 ## Requirements
 
 - macOS 14 or later
-- Swift 6 Command Line Tools
-- No Xcode and no third-party packages
 
-## Build and run
+## Build from source
+
+Building needs the Swift 6 Command Line Tools. No Xcode and no third-party packages.
 
 ```sh
 swift build -c release
