@@ -12,7 +12,7 @@ The goal is a small footprint and simplicity. The app bundle is about 4.6 MB, an
 
 ![Queue](docs/queue.png)
 
-## Download
+## Download and install
 
 Download `Nightdeck-1.1.0-macOS.zip` from [Releases](https://github.com/fredrikspang-sys/nightdeck/releases), unzip it and move `Nightdeck.app` to Applications.
 
