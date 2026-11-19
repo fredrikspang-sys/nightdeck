@@ -14,7 +14,13 @@ The goal is a small footprint and simplicity. The app bundle is about 4.6 MB, an
 
 ## Download and install
 
-Download `Nightdeck-1.1.0-macOS.zip` from [Releases](https://github.com/fredrikspang-sys/nightdeck/releases), unzip it and move `Nightdeck.app` to Applications.
+Install with Homebrew:
+
+```sh
+brew install --cask fredrikspang-sys/tap/nightdeck
+```
+
+Or download `Nightdeck-1.1.0-macOS.zip` from [Releases](https://github.com/fredrikspang-sys/nightdeck/releases), unzip it and move `Nightdeck.app` to Applications.
 
 The app is ad-hoc signed and not notarized, so macOS blocks it the first time. Right-click `Nightdeck.app` and choose Open, then confirm. On newer macOS versions you may need to allow it under System Settings > Privacy & Security instead. You can also remove the quarantine flag in Terminal:
 
