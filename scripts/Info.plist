@@ -37,6 +37,6 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Nightdeck finds BluOS players on the local network.</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright 2026 Fredrik Spång</string>
+	<string>Copyright 2026 fredrikspang-sys</string>
 </dict>
 </plist>
